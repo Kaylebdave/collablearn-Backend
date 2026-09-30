@@ -1,0 +1,9 @@
+spring.data.mongodb.uri=${MONGODB_URI:mongodb://localhost:27017/collablearn}
+spring.data.mongodb.database=collablearn
+
+spring.mail.host=${MAIL_HOST:localhost}
+spring.mail.port=${MAIL_PORT:1025}
+spring.mail.username=${MAIL_USERNAME:}
+spring.mail.password=${MAIL_PASSWORD:}
+spring.mail.properties.mail.smtp.auth=${MAIL_SMTP_AUTH:false}
+spring.mail.properties.mail.smtp.starttls.enable=${MAIL_SMTP_STARTTLS:false}
