@@ -21,11 +21,9 @@ public class CorsConfig {
             "http://127.0.0.1:5173"
         ));
         configuration.setAllowedMethods(List.of(
-            "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
+            "GET", "POST", "PUT", "DELETE", "OPTIONS"
         ));
-        configuration.setAllowedHeaders(List.of(
-            "Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"
-        ));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
