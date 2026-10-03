@@ -182,11 +182,7 @@ public class AuthService {
         System.out.println("OTP: " + otp);
         System.out.println("===================");
 
-        try {
-            emailService.sendOtpEmail(email, otp);
-        } catch (Exception exception) {
-            System.out.println("Email could not be sent. Continuing in development mode.");
-        }
+        emailService.sendOtpEmail(email, otp);
     }
 
     private OtpToken findLatestToken(String email) {
