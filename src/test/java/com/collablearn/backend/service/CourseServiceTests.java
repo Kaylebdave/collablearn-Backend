@@ -43,6 +43,30 @@ class CourseServiceTests {
     }
 
     @Test
+    void studentBrowseIncludesCoursesWithEmptyEnrollmentLists() {
+        CourseRepository courseRepository = mock(CourseRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        User student = user("student-1", "student", "Student");
+        Course availableCourse = course("course-available", null);
+        availableCourse.setCode("DBS201");
+        availableCourse.setTitle("Database Systems");
+        availableCourse.setDescription("Relational databases");
+        availableCourse.setTutorName("Course Tutor");
+        Course enrolledCourse = course("course-enrolled", "student-1");
+        when(userRepository.findById("student-1")).thenReturn(Optional.of(student));
+        when(courseRepository.findAll()).thenReturn(List.of(availableCourse, enrolledCourse));
+        CourseService service = new CourseService(courseRepository, userRepository, mock(Cloudinary.class));
+
+        var browseResults = service.browseForStudent("student-1");
+
+        assertEquals(1, browseResults.size());
+        assertEquals("course-available", browseResults.get(0).id());
+        assertEquals("DBS201", browseResults.get(0).code());
+        assertEquals("Database Systems", browseResults.get(0).title());
+        assertEquals("Course Tutor", browseResults.get(0).tutorName());
+    }
+
+    @Test
     void tutorCourseListUsesOnlyOwnedCourses() {
         CourseRepository courseRepository = mock(CourseRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
