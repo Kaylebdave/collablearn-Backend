@@ -5,13 +5,21 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.collablearn.backend.dto.CourseListItem;
+import com.collablearn.backend.model.Material;
 import com.collablearn.backend.service.CourseService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.multipart.MultipartFile;
 
 class CourseControllerTests {
 
@@ -76,4 +84,41 @@ class CourseControllerTests {
         assertEquals("Use GET /api/courses with userId for enrolled courses",
                 ((java.util.Map<?, ?>) response.getBody()).get("message"));
     }
+
+            @Test
+            void materialUploadAcceptsPdfAndImageMultipartRequests() throws Exception {
+            CourseService courseService = mock(CourseService.class);
+            when(courseService.addMaterial(any(), any(), any(MultipartFile.class), any()))
+                .thenReturn(new Material("material-1", "Lecture notes", "https://example.test/file", "application/pdf", 3, null));
+            MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new CourseController(courseService)).build();
+
+            mockMvc.perform(multipart("/api/courses/course-1/materials")
+                    .file(new MockMultipartFile("file", "notes.pdf", "application/pdf", new byte[]{1, 2, 3}))
+                    .param("title", "Lecture notes")
+                    .param("userId", "tutor-1"))
+                .andExpect(status().isCreated());
+            mockMvc.perform(multipart("/api/courses/course-1/materials")
+                    .file(new MockMultipartFile("file", "diagram.png", "image/png", new byte[]{1, 2, 3}))
+                    .param("title", "Diagram")
+                    .param("userId", "tutor-1"))
+                .andExpect(status().isCreated());
+
+            verify(courseService, org.mockito.Mockito.times(2))
+                .addMaterial(any(), any(), any(MultipartFile.class), any());
+            }
+
+            @Test
+            void materialUploadReturnsClearErrorsForMissingOrEmptyFile() throws Exception {
+            MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new CourseController(mock(CourseService.class))).build();
+
+            mockMvc.perform(multipart("/api/courses/course-1/materials")
+                    .param("title", "Lecture notes")
+                    .param("userId", "tutor-1"))
+                .andExpect(status().isBadRequest());
+            mockMvc.perform(multipart("/api/courses/course-1/materials")
+                    .file(new MockMultipartFile("file", "empty.pdf", "application/pdf", new byte[0]))
+                    .param("title", "Lecture notes")
+                    .param("userId", "tutor-1"))
+                .andExpect(status().isBadRequest());
+            }
 }

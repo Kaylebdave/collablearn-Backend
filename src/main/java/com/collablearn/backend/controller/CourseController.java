@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
@@ -100,11 +101,20 @@ public class CourseController {
     @PostMapping(value = "/{courseId}/materials", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadMaterial(
         @PathVariable String courseId,
-        @RequestParam("file") MultipartFile file,
-        @RequestParam("title") String title,
+        @RequestPart(value = "file", required = false) MultipartFile file,
+        @RequestParam(value = "title", required = false) String title,
         @RequestParam(required = false) String userId,
         @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
+        if (file == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "file is required"));
+        }
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "file must not be empty"));
+        }
+        if (title == null || title.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "title is required"));
+        }
         try {
             String tutorId = resolveUserId(userId, headerUserId, "POST /api/courses/{courseId}/materials");
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
