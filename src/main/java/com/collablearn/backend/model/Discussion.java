@@ -17,6 +17,7 @@ public class Discussion {
     private String id;
     private String title;
     private String content;
+    private String userId;
     private String author;
     private String courseId;
     private String course;

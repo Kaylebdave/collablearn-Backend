@@ -121,4 +121,19 @@ class CourseControllerTests {
                     .param("userId", "tutor-1"))
                 .andExpect(status().isBadRequest());
             }
+
+    @Test
+    void courseDetailRequiresUserIdAndMapsAccessDeniedToForbidden() {
+        CourseService courseService = mock(CourseService.class);
+        CourseController controller = new CourseController(courseService);
+
+        ResponseEntity<?> missingUser = controller.findById("course-1", null, null);
+        when(courseService.findById("course-1", "student-2"))
+                .thenThrow(new org.springframework.security.access.AccessDeniedException("You do not have access to this course"));
+        ResponseEntity<?> denied = controller.findById("course-1", "student-2", null);
+
+        assertEquals(HttpStatus.BAD_REQUEST, missingUser.getStatusCode());
+        assertEquals("userId is required", ((java.util.Map<?, ?>) missingUser.getBody()).get("message"));
+        assertEquals(HttpStatus.FORBIDDEN, denied.getStatusCode());
+    }
 }

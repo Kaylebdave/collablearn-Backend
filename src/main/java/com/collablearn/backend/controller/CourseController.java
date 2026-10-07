@@ -63,8 +63,15 @@ public class CourseController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> findById(@PathVariable String id) {
-        try { return ResponseEntity.ok(courseService.findById(id)); }
+    public ResponseEntity<?> findById(
+            @PathVariable String id,
+            @RequestParam(required = false) String userId,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String headerUserId
+    ) {
+        try {
+            String requesterId = resolveUserId(userId, headerUserId, "GET /api/courses/{id}");
+            return ResponseEntity.ok(courseService.findById(id, requesterId));
+        }
         catch (RuntimeException exception) { return errorResponse(exception); }
     }
 

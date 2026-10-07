@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.cloudinary.Cloudinary;
 import com.collablearn.backend.dto.CourseCreateRequest;
 import com.collablearn.backend.model.Course;
+import com.collablearn.backend.model.Material;
 import com.collablearn.backend.model.User;
 import com.collablearn.backend.repository.CourseRepository;
 import com.collablearn.backend.repository.UserRepository;
@@ -79,6 +80,38 @@ class CourseServiceTests {
         assertEquals(List.of("course-1"), courses.stream().map(item -> item.id()).toList());
         verify(courseRepository).findByTutorId("tutor-1");
         verify(courseRepository, never()).findByEnrolledStudentIdsContaining(any());
+    }
+
+    @Test
+    void enrolledStudentCanFetchCourseMaterials() {
+        CourseRepository courseRepository = mock(CourseRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        User student = user("student-1", "student", "Student");
+        Course course = course("course-1", "student-1");
+        course.setMaterials(List.of(new Material("material-1", "Lecture notes", "https://files.test/notes.pdf",
+                "application/pdf", 2048, null)));
+        when(userRepository.findById("student-1")).thenReturn(Optional.of(student));
+        when(userRepository.findAllById(List.of("student-1"))).thenReturn(List.of(student));
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(course));
+        CourseService service = new CourseService(courseRepository, userRepository, mock(Cloudinary.class));
+
+        var details = service.findById("course-1", "student-1");
+
+        assertEquals("https://files.test/notes.pdf", details.materials().get(0).getFileUrl());
+        assertEquals("application/pdf", details.materials().get(0).getFileType());
+        assertEquals(List.of("student-1"), details.enrolledStudentIds());
+    }
+
+    @Test
+    void nonEnrolledStudentCannotFetchCourseMaterials() {
+        CourseRepository courseRepository = mock(CourseRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        User student = user("student-2", "student", "Other Student");
+        when(userRepository.findById("student-2")).thenReturn(Optional.of(student));
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(course("course-1", "student-1")));
+        CourseService service = new CourseService(courseRepository, userRepository, mock(Cloudinary.class));
+
+        assertThrows(AccessDeniedException.class, () -> service.findById("course-1", "student-2"));
     }
 
     @Test

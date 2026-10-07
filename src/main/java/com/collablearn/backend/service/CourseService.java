@@ -74,11 +74,11 @@ public class CourseService {
         return toDetails(saved);
     }
 
-    public CourseDetailsResponse findById(String id) {
-        Course course = courseRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Course not found"));
+    public CourseDetailsResponse findById(String id, String userId) {
+        User user = requireUser(userId);
+        Course course = findCourse(id);
+        requireCourseAccess(user, course);
         ensureMaterialsList(course);
-        ensureStudentIds(course);
         return toDetails(course);
     }
 
@@ -156,6 +156,16 @@ public class CourseService {
             throw new AccessDeniedException(message);
         }
         return user;
+    }
+
+    private void requireCourseAccess(User user, Course course) {
+        boolean isTutorOwner = "tutor".equals(normalizeRole(user.getRole()))
+                && user.getId().equals(course.getTutorId());
+        boolean isEnrolledStudent = "student".equals(normalizeRole(user.getRole()))
+                && studentIds(course).contains(user.getId());
+        if (!isTutorOwner && !isEnrolledStudent) {
+            throw new AccessDeniedException("You do not have access to this course");
+        }
     }
 
     private String normalizeRole(String role) {

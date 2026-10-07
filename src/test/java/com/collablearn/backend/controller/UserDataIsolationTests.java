@@ -10,8 +10,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import com.collablearn.backend.model.Discussion;
+import com.collablearn.backend.model.Course;
 import com.collablearn.backend.model.Reply;
 import com.collablearn.backend.model.User;
 import com.collablearn.backend.repository.DiscussionRepository;
@@ -54,18 +56,25 @@ class UserDataIsolationTests {
     @Test
     void replyAuthorIsResolvedFromSuppliedUserId() {
         DiscussionRepository discussionRepository = mock(DiscussionRepository.class);
+        CourseRepository courseRepository = mock(CourseRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
         User user = new User();
         user.setId("user-1");
         user.setName("Current User");
+        user.setRole("student");
         Discussion discussion = new Discussion();
         discussion.setId("discussion-1");
+        discussion.setCourseId("course-1");
         discussion.setReplies(new ArrayList<>());
+        Course course = new Course();
+        course.setId("course-1");
+        course.setEnrolledStudentIds(List.of("user-1"));
         when(userRepository.findById("user-1")).thenReturn(Optional.of(user));
         when(discussionRepository.findById("discussion-1")).thenReturn(Optional.of(discussion));
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(course));
         when(discussionRepository.save(any(Discussion.class))).thenAnswer(invocation -> invocation.getArgument(0));
         DiscussionService discussionService = new DiscussionService(
-            discussionRepository, userRepository, mock(CourseRepository.class));
+            discussionRepository, userRepository, courseRepository);
         Reply reply = new Reply();
         reply.setUserId(" user-1 ");
         reply.setAuthor("Forged Name");
