@@ -7,6 +7,8 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CourseCreateRequest {
+    private String userId;
+
     @NotBlank(message = "code is required")
     private String code;
 

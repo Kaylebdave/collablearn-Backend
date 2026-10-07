@@ -19,6 +19,9 @@ public class Course {
     private String title;
     private String lecturer;
     private String description;
+    private String tutorId;
+    private String tutorName;
+    private List<String> enrolledStudentIds = new ArrayList<>();
     private int materialsCount;
     private List<Material> materials = new ArrayList<>();
 }

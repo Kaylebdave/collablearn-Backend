@@ -18,6 +18,7 @@ public class Discussion {
     private String title;
     private String content;
     private String author;
+    private String courseId;
     private String course;
     private List<Reply> replies = new ArrayList<>();
     private String status;

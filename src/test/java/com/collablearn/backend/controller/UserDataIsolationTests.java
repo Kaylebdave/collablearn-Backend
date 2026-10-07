@@ -15,6 +15,7 @@ import com.collablearn.backend.model.Discussion;
 import com.collablearn.backend.model.Reply;
 import com.collablearn.backend.model.User;
 import com.collablearn.backend.repository.DiscussionRepository;
+import com.collablearn.backend.repository.CourseRepository;
 import com.collablearn.backend.repository.OtpTokenRepository;
 import com.collablearn.backend.repository.UserRepository;
 import com.collablearn.backend.service.AuthService;
@@ -63,7 +64,8 @@ class UserDataIsolationTests {
         when(userRepository.findById("user-1")).thenReturn(Optional.of(user));
         when(discussionRepository.findById("discussion-1")).thenReturn(Optional.of(discussion));
         when(discussionRepository.save(any(Discussion.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        DiscussionService discussionService = new DiscussionService(discussionRepository, userRepository);
+        DiscussionService discussionService = new DiscussionService(
+            discussionRepository, userRepository, mock(CourseRepository.class));
         Reply reply = new Reply();
         reply.setUserId(" user-1 ");
         reply.setAuthor("Forged Name");
@@ -80,7 +82,7 @@ class UserDataIsolationTests {
     @Test
     void replyWithoutAuthorIsRejected() {
         DiscussionService discussionService = new DiscussionService(
-                mock(DiscussionRepository.class), mock(UserRepository.class));
+            mock(DiscussionRepository.class), mock(UserRepository.class), mock(CourseRepository.class));
         Reply reply = new Reply();
 
         IllegalArgumentException exception = assertThrows(
