@@ -40,7 +40,7 @@ public class AuthService {
                 request.getPassword(),
                 role
         );
-        return "OTP generated successfully. Check server console (development mode).";
+        return "OTP sent to your email. If you don't see it, check spam.";
     }
 
     public AuthResponse verifyOtp(VerifyOtpRequest request) {
@@ -86,7 +86,7 @@ public class AuthService {
                 previousToken.getPassword(),
                 previousToken.getRole()
         );
-        return "OTP generated successfully. Check server console (development mode).";
+        return "OTP sent to your email. If you don't see it, check spam.";
     }
 
     public AuthResponse login(LoginRequest request) {
