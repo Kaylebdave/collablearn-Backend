@@ -13,11 +13,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/discussions")
 @RequiredArgsConstructor
 public class DiscussionController {
+    private static final Logger logger = LoggerFactory.getLogger(DiscussionController.class);
     private final DiscussionService discussionService;
 
     @GetMapping
@@ -37,6 +40,15 @@ public class DiscussionController {
     @PostMapping("/{id}/replies")
     public ResponseEntity<?> addReply(@PathVariable String id, @RequestBody Reply reply) {
         try { return ResponseEntity.status(HttpStatus.CREATED).body(discussionService.addReply(id, reply)); }
-        catch (IllegalArgumentException exception) { return ResponseEntity.notFound().build(); }
+        catch (IllegalArgumentException exception) {
+            if ("User not found".equals(exception.getMessage())) {
+                logger.warn("POST /api/discussions/{}/replies rejected: invalid user id {}", id, reply.getUserId());
+                return ResponseEntity.notFound().build();
+            }
+            if ("Reply author is required".equals(exception.getMessage())) {
+                return ResponseEntity.badRequest().body(exception.getMessage());
+            }
+            return ResponseEntity.notFound().build();
+        }
     }
 }

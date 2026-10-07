@@ -20,6 +20,5 @@ public class Course {
     private String lecturer;
     private String description;
     private int materialsCount;
-    private int progress;
     private List<Material> materials = new ArrayList<>();
 }

@@ -112,17 +112,12 @@ public class AuthService {
         return UserProfileResponse.from(userRepository.save(user));
     }
 
-    public UserProfileResponse findProfile(String userId, String email) {
-        User user;
-        if (userId != null && !userId.isBlank()) {
-            user = userRepository.findById(userId.trim())
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        } else if (email != null && !email.isBlank()) {
-            user = userRepository.findByEmail(email.trim().toLowerCase())
-                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        } else {
-            throw new IllegalArgumentException("Provide userId or email");
+    public UserProfileResponse findProfile(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("User id is required");
         }
+        User user = userRepository.findById(userId.trim())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
         return UserProfileResponse.from(user);
     }
 

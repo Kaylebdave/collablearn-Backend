@@ -21,11 +21,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final AuthService authService;
     private final UserRepository userRepository;
 
@@ -56,20 +59,27 @@ public class AuthController {
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(
             @RequestParam(required = false) String userId,
-            @RequestParam(required = false) String email
+            @RequestParam(required = false) String email,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
         try {
-            return ResponseEntity.ok(authService.findProfile(userId, email));
+            return ResponseEntity.ok(authService.findProfile(requireUserId(userId, headerUserId, "GET /api/auth/profile")));
         } catch (IllegalArgumentException exception) {
             return profileError(exception);
         }
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(@RequestBody Map<String, Object> body) {
-        String id = (String) body.get("id");
-        if (id == null || id.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "id is required"));
+    public ResponseEntity<?> updateProfile(
+            @RequestBody Map<String, Object> body,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String headerUserId
+    ) {
+        String requestedId = body.get("id") == null ? null : String.valueOf(body.get("id"));
+        final String id;
+        try {
+            id = requireUserId(requestedId, headerUserId, "PUT /api/auth/profile");
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         }
 
         return userRepository.findById(id)
@@ -100,17 +110,43 @@ public class AuthController {
     }
 
     @PutMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<?> changePassword(
+            @RequestBody ChangePasswordRequest request,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String headerUserId
+    ) {
         try {
-            authService.changePassword(request.getId(), request.getOldPassword(), request.getNewPassword());
+            String userId = requireUserId(request.getId(), headerUserId, "PUT /api/auth/change-password");
+            authService.changePassword(userId, request.getOldPassword(), request.getNewPassword());
             return ResponseEntity.ok().body(java.util.Map.of("message", "Password changed successfully"));
         } catch (IllegalArgumentException exception) {
             return profileError(exception);
         }
     }
 
+    private String requireUserId(String requestedId, String headerUserId, String endpoint) {
+        String normalizedId = normalizeUserId(requestedId);
+        String normalizedHeaderId = normalizeUserId(headerUserId);
+        if (normalizedId == null && normalizedHeaderId == null) {
+            logger.warn("{} rejected: missing user id", endpoint);
+            throw new IllegalArgumentException("userId is required");
+        }
+        if (normalizedId != null && normalizedHeaderId != null && !normalizedId.equals(normalizedHeaderId)) {
+            logger.warn("{} rejected: request user id does not match X-User-Id", endpoint);
+            throw new IllegalArgumentException("userId does not match X-User-Id");
+        }
+        return normalizedId == null ? normalizedHeaderId : normalizedId;
+    }
+
+    private String normalizeUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        return userId.trim();
+    }
+
     private ResponseEntity<?> profileError(IllegalArgumentException exception) {
         if ("User not found".equals(exception.getMessage())) {
+            logger.warn("Private profile/password request rejected: user id not found");
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(java.util.Map.of("message", "User not found"));
         }
