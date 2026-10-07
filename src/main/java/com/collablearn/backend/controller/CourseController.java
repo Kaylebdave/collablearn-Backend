@@ -55,6 +55,12 @@ public class CourseController {
         }
     }
 
+    @GetMapping("/enrolled")
+    public ResponseEntity<?> deprecatedEnrolledPath() {
+        return ResponseEntity.badRequest().body(Map.of(
+                "message", "Use GET /api/courses with userId for enrolled courses"));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<?> findById(@PathVariable String id) {
         try { return ResponseEntity.ok(courseService.findById(id)); }
@@ -78,12 +84,13 @@ public class CourseController {
     public ResponseEntity<?> enroll(
             @PathVariable String id,
             @RequestBody(required = false) EnrollmentRequest request,
+            @RequestParam(required = false) String userId,
             @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Id", required = false) String headerUserId
     ) {
         String bodyUserId = request == null ? null
                 : (request.getStudentId() == null ? request.getUserId() : request.getStudentId());
         try {
-            String studentId = resolveUserId(bodyUserId, headerUserId, "POST /api/courses/{id}/enroll");
+            String studentId = resolveUserId(bodyUserId, userId, headerUserId, "POST /api/courses/{id}/enroll");
             return ResponseEntity.ok(courseService.enroll(id, studentId));
         } catch (RuntimeException exception) {
             return errorResponse(exception);
@@ -120,17 +127,27 @@ public class CourseController {
     }
 
     private String resolveUserId(String suppliedId, String headerUserId, String endpoint) {
-        String normalizedId = normalizeUserId(suppliedId);
+        return resolveUserId(suppliedId, null, headerUserId, endpoint);
+    }
+
+    private String resolveUserId(String bodyUserId, String queryUserId, String headerUserId, String endpoint) {
+        String normalizedId = normalizeUserId(bodyUserId);
+        String normalizedQueryId = normalizeUserId(queryUserId);
         String normalizedHeaderId = normalizeUserId(headerUserId);
-        if (normalizedId == null && normalizedHeaderId == null) {
+        if (normalizedId == null && normalizedQueryId == null && normalizedHeaderId == null) {
             logger.warn("{} rejected: missing user id", endpoint);
             throw new IllegalArgumentException("userId is required");
         }
-        if (normalizedId != null && normalizedHeaderId != null && !normalizedId.equals(normalizedHeaderId)) {
+        String resolvedId = normalizedId != null ? normalizedId : normalizedQueryId;
+        if (normalizedId != null && normalizedQueryId != null && !normalizedId.equals(normalizedQueryId)
+                || resolvedId != null && normalizedHeaderId != null && !resolvedId.equals(normalizedHeaderId)) {
             logger.warn("{} rejected: request user id does not match X-User-Id", endpoint);
-            throw new IllegalArgumentException("userId does not match X-User-Id");
+            throw new IllegalArgumentException("userId values do not match");
         }
-        return normalizedId == null ? normalizedHeaderId : normalizedId;
+        if (resolvedId != null) {
+            return resolvedId;
+        }
+        return normalizedHeaderId;
     }
 
     private String normalizeUserId(String userId) {
