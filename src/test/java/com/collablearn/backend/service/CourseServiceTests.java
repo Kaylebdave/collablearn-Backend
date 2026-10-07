@@ -107,6 +107,43 @@ class CourseServiceTests {
     }
 
     @Test
+    void enrollmentPreservesTutorOwnershipAndTutorCanStillListCourse() {
+        CourseRepository courseRepository = mock(CourseRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        User tutor = user("tutor-1", "tutor", "Tutor");
+        User student = user("student-1", "student", "Student");
+        when(userRepository.findById("tutor-1")).thenReturn(Optional.of(tutor));
+        when(userRepository.findById("student-1")).thenReturn(Optional.of(student));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> {
+            Course saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                saved.setId("course-1");
+            }
+            return saved;
+        });
+        CourseCreateRequest request = new CourseCreateRequest();
+        request.setCode("DBS201");
+        request.setTitle("Database Systems");
+        request.setLecturer("Tutor");
+        request.setDescription("Database fundamentals");
+        CourseService service = new CourseService(courseRepository, userRepository, mock(Cloudinary.class));
+
+        var created = service.create(request, "tutor-1");
+        Course persistedCourse = courseFrom(created);
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(persistedCourse));
+        service.enroll("course-1", "student-1");
+        when(courseRepository.findByTutorId("tutor-1")).thenReturn(List.of(persistedCourse));
+
+        var tutorCourses = service.findAllForUser("tutor-1");
+
+        assertEquals("tutor-1", created.tutorId());
+        assertEquals("tutor-1", persistedCourse.getTutorId());
+        assertEquals(List.of("student-1"), persistedCourse.getEnrolledStudentIds());
+        assertEquals(List.of("course-1"), tutorCourses.stream().map(item -> item.id()).toList());
+        verify(courseRepository).findByTutorId("tutor-1");
+    }
+
+    @Test
     void enrollmentDoesNotAddDuplicateStudentIds() {
         CourseRepository courseRepository = mock(CourseRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
@@ -154,6 +191,16 @@ class CourseServiceTests {
         course.setTutorName("Tutor");
         course.setMaterials(new ArrayList<>());
         course.setEnrolledStudentIds(enrolledStudentId == null ? new ArrayList<>() : new ArrayList<>(List.of(enrolledStudentId)));
+        return course;
+    }
+
+    private Course courseFrom(com.collablearn.backend.dto.CourseDetailsResponse details) {
+        Course course = course(details.id(), null);
+        course.setCode(details.code());
+        course.setTitle(details.title());
+        course.setDescription(details.description());
+        course.setTutorId(details.tutorId());
+        course.setTutorName(details.tutorName());
         return course;
     }
 }

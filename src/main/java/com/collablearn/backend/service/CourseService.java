@@ -17,6 +17,8 @@ import java.util.Map;
 import com.collablearn.backend.repository.CourseRepository;
 import com.collablearn.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 public class CourseService {
+    private static final Logger logger = LoggerFactory.getLogger(CourseService.class);
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
     private final Cloudinary cloudinary;
@@ -32,10 +35,16 @@ public class CourseService {
         User user = requireUser(userId);
         List<Course> courses = switch (normalizeRole(user.getRole())) {
             case "student" -> courseRepository.findByEnrolledStudentIdsContaining(user.getId());
-            case "tutor" -> courseRepository.findByTutorId(user.getId());
+            case "tutor" -> findTutorCourses(user.getId());
             default -> throw new AccessDeniedException("Only students and tutors can view courses");
         };
         return courses.stream().map(this::toListItem).toList();
+    }
+
+    private List<Course> findTutorCourses(String tutorId) {
+        List<Course> courses = courseRepository.findByTutorId(tutorId);
+        logger.info("Tutor course list query tutorId={} resultCount={}", tutorId, courses.size());
+        return courses;
     }
 
     public List<CourseListItem> browseForStudent(String userId) {
@@ -48,6 +57,9 @@ public class CourseService {
 
     public CourseDetailsResponse create(CourseCreateRequest request, String tutorId) {
         User tutor = requireRole(tutorId, "tutor", "Only tutors can create courses");
+        if (tutor.getId() == null || tutor.getId().isBlank()) {
+            throw new IllegalArgumentException("Tutor user id is required");
+        }
         Course course = new Course();
         course.setCode(request.getCode());
         course.setTitle(request.getTitle());
@@ -57,7 +69,9 @@ public class CourseService {
         course.setTutorName(tutor.getName());
         course.setEnrolledStudentIds(new ArrayList<>());
         ensureMaterialsList(course);
-        return toDetails(courseRepository.save(course));
+        Course saved = courseRepository.save(course);
+        logger.info("Created course id={} saved tutorId={}", saved.getId(), saved.getTutorId());
+        return toDetails(saved);
     }
 
     public CourseDetailsResponse findById(String id) {
