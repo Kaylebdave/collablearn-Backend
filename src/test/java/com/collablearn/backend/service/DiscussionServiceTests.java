@@ -33,6 +33,25 @@ class DiscussionServiceTests {
     }
 
     @Test
+    void courseFilterDoesNotMixDiscussionsFromOtherCourses() {
+        DiscussionRepository discussionRepository = mock(DiscussionRepository.class);
+        CourseRepository courseRepository = mock(CourseRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        User student = user("student-1", "student");
+        Course course = course("course-1", "student-1");
+        Discussion matching = discussion("discussion-1", "course-1");
+        Discussion otherCourse = discussion("discussion-2", "course-2");
+        when(userRepository.findById("student-1")).thenReturn(Optional.of(student));
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(course));
+        when(discussionRepository.findAll()).thenReturn(List.of(matching, otherCourse));
+        DiscussionService service = new DiscussionService(discussionRepository, userRepository, courseRepository);
+
+        List<Discussion> results = service.findAll("student-1", "course-1");
+
+        assertEquals(List.of("discussion-1"), results.stream().map(Discussion::getId).toList());
+    }
+
+    @Test
     void createUsesStoredAuthorNameAndCourseScope() {
         DiscussionRepository discussionRepository = mock(DiscussionRepository.class);
         CourseRepository courseRepository = mock(CourseRepository.class);
@@ -90,5 +109,12 @@ class DiscussionServiceTests {
         course.setTutorId("tutor-1");
         course.setEnrolledStudentIds(List.of(studentId));
         return course;
+    }
+
+    private Discussion discussion(String id, String courseId) {
+        Discussion discussion = new Discussion();
+        discussion.setId(id);
+        discussion.setCourseId(courseId);
+        return discussion;
     }
 }

@@ -103,6 +103,24 @@ class CourseServiceTests {
     }
 
     @Test
+    void tutorOwnerCanFetchCourseMaterials() {
+        CourseRepository courseRepository = mock(CourseRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        User tutor = user("tutor-1", "tutor", "Tutor");
+        Course course = course("course-1", null);
+        course.setMaterials(List.of(new Material("material-1", "Lecture notes", "https://files.test/notes.pdf",
+                "application/pdf", 2048, null)));
+        when(userRepository.findById("tutor-1")).thenReturn(Optional.of(tutor));
+        when(courseRepository.findById("course-1")).thenReturn(Optional.of(course));
+        CourseService service = new CourseService(courseRepository, userRepository, mock(Cloudinary.class));
+
+        var details = service.findById("course-1", "tutor-1");
+
+        assertEquals("https://files.test/notes.pdf", details.materials().get(0).getFileUrl());
+        assertEquals("tutor-1", details.tutorId());
+    }
+
+    @Test
     void nonEnrolledStudentCannotFetchCourseMaterials() {
         CourseRepository courseRepository = mock(CourseRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
