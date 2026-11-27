@@ -20,5 +20,6 @@ public class Group {
     private String description;
     private List<String> members = new ArrayList<>();
     private List<String> resources = new ArrayList<>();
+    private List<GroupPost> posts = new ArrayList<>();
     private String status;
 }

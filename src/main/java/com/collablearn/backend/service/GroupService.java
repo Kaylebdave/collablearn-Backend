@@ -2,8 +2,13 @@ package com.collablearn.backend.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.Instant;
+import java.util.UUID;
 import com.collablearn.backend.model.Group;
+import com.collablearn.backend.model.GroupPost;
+import com.collablearn.backend.model.User;
 import com.collablearn.backend.repository.GroupRepository;
+import com.collablearn.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -11,14 +16,37 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class GroupService {
     private final GroupRepository groupRepository;
+    private final UserRepository userRepository;
 
-    public List<Group> findAll() { return groupRepository.findAll(); }
+    public List<Group> findAll() {
+        List<Group> groups = groupRepository.findAll();
+        groups.forEach(this::initializePosts);
+        return groups;
+    }
     public Group create(Group group) {
         if (group.getMembers() == null) group.setMembers(new ArrayList<>());
         if (group.getResources() == null) group.setResources(new ArrayList<>());
+        if (group.getPosts() == null) group.setPosts(new ArrayList<>());
         return groupRepository.save(group);
     }
     public Group findById(String id) {
-        return groupRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Group not found"));
+        Group group = groupRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Group not found"));
+        initializePosts(group);
+        return group;
+    }
+
+    public GroupPost addPost(String groupId, String content, String userId) {
+        Group group = findById(groupId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        GroupPost post = new GroupPost(UUID.randomUUID().toString(), content, userId, user.getName(), Instant.now());
+        group.getPosts().add(post);
+        groupRepository.save(group);
+        return post;
+    }
+
+    private void initializePosts(Group group) {
+        if (group.getPosts() == null) group.setPosts(new ArrayList<>());
     }
 }
