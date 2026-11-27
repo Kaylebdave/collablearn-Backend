@@ -18,7 +18,7 @@ public class Group {
     private String name;
     private String course;
     private String description;
-    private List<String> members = new ArrayList<>();
+    private List<GroupMember> members = new ArrayList<>();
     private List<String> resources = new ArrayList<>();
     private List<GroupPost> posts = new ArrayList<>();
     private String status;

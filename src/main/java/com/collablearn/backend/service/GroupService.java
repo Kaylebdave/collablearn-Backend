@@ -5,6 +5,7 @@ import java.util.List;
 import java.time.Instant;
 import java.util.UUID;
 import com.collablearn.backend.model.Group;
+import com.collablearn.backend.model.GroupMember;
 import com.collablearn.backend.model.GroupPost;
 import com.collablearn.backend.model.User;
 import com.collablearn.backend.repository.GroupRepository;
@@ -20,11 +21,12 @@ public class GroupService {
 
     public List<Group> findAll() {
         List<Group> groups = groupRepository.findAll();
-        groups.forEach(this::initializePosts);
+        groups.forEach(this::initializeLists);
         return groups;
     }
-    public Group create(Group group) {
-        if (group.getMembers() == null) group.setMembers(new ArrayList<>());
+    public Group create(Group group, String userId) {
+        User user = findUser(userId);
+        group.setMembers(new ArrayList<>(List.of(new GroupMember(userId, user.getName(), "owner"))));
         if (group.getResources() == null) group.setResources(new ArrayList<>());
         if (group.getPosts() == null) group.setPosts(new ArrayList<>());
         return groupRepository.save(group);
@@ -32,8 +34,18 @@ public class GroupService {
     public Group findById(String id) {
         Group group = groupRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Group not found"));
-        initializePosts(group);
+        initializeLists(group);
         return group;
+    }
+
+    public Group join(String groupId, String userId) {
+        Group group = findById(groupId);
+        if (group.getMembers().stream().anyMatch(member -> userId.equals(member.getMemberId()))) {
+            return group;
+        }
+        User user = findUser(userId);
+        group.getMembers().add(new GroupMember(userId, user.getName(), "member"));
+        return groupRepository.save(group);
     }
 
     public GroupPost addPost(String groupId, String content, String userId) {
@@ -46,7 +58,14 @@ public class GroupService {
         return post;
     }
 
-    private void initializePosts(Group group) {
+    private User findUser(String userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+    }
+
+    private void initializeLists(Group group) {
+        if (group.getMembers() == null) group.setMembers(new ArrayList<>());
+        if (group.getResources() == null) group.setResources(new ArrayList<>());
         if (group.getPosts() == null) group.setPosts(new ArrayList<>());
     }
 }

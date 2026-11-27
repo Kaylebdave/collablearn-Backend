@@ -3,8 +3,11 @@ package com.collablearn.backend.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
+import com.collablearn.backend.dto.GroupCreateRequest;
+import com.collablearn.backend.dto.GroupJoinRequest;
 import com.collablearn.backend.dto.GroupPostRequest;
 import com.collablearn.backend.dto.GroupPostResponse;
 import com.collablearn.backend.model.Group;
@@ -17,6 +20,43 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 class GroupControllerTests {
+
+    @Test
+    void createRequiresMatchingUserIdAndReturnsCreatedGroup() {
+        GroupService service = mock(GroupService.class);
+        Group group = new Group();
+        when(service.create(org.mockito.ArgumentMatchers.any(Group.class), org.mockito.ArgumentMatchers.eq("user-1")))
+                .thenReturn(group);
+        GroupController controller = new GroupController(service);
+
+        ResponseEntity<?> response = controller.create(
+                new GroupCreateRequest("Study", "Math", "Description", "user-1"), "user-1");
+
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertEquals(group, response.getBody());
+    }
+
+    @Test
+    void joinRejectsMismatchedUserId() {
+        GroupService service = mock(GroupService.class);
+        GroupController controller = new GroupController(service);
+
+        ResponseEntity<?> response = controller.join("group-1", new GroupJoinRequest("user-1"), "user-2");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void joinReturnsNotFoundWhenGroupDoesNotExist() {
+        GroupService service = mock(GroupService.class);
+        doThrow(new IllegalArgumentException("Group not found")).when(service).join("group-1", "user-1");
+        GroupController controller = new GroupController(service);
+
+        ResponseEntity<?> response = controller.join("group-1", new GroupJoinRequest("user-1"), "user-1");
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
 
     @Test
     void addPostReturnsCreatedPostWithGroupId() {

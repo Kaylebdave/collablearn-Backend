@@ -2,6 +2,8 @@ package com.collablearn.backend.controller;
 
 import com.collablearn.backend.dto.GroupPostRequest;
 import com.collablearn.backend.dto.GroupPostResponse;
+import com.collablearn.backend.dto.GroupCreateRequest;
+import com.collablearn.backend.dto.GroupJoinRequest;
 import com.collablearn.backend.model.Group;
 import com.collablearn.backend.model.GroupPost;
 import com.collablearn.backend.service.GroupService;
@@ -34,8 +36,40 @@ public class GroupController {
     }
 
     @PostMapping
-    public ResponseEntity<Group> create(@RequestBody Group group) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(groupService.create(group));
+    public ResponseEntity<?> create(
+            @RequestBody GroupCreateRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId
+    ) {
+        String userId = resolveUserId(request == null ? null : request.userId(), headerUserId);
+        if (userId == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "userId is required"));
+        }
+        try {
+            Group group = new Group();
+            group.setName(request.name());
+            group.setCourse(request.course());
+            group.setDescription(request.description());
+            return ResponseEntity.status(HttpStatus.CREATED).body(groupService.create(group, userId));
+        } catch (IllegalArgumentException exception) {
+            return userNotFound(exception);
+        }
+    }
+
+    @PostMapping("/{id}/join")
+    public ResponseEntity<?> join(
+            @PathVariable String id,
+            @RequestBody GroupJoinRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId
+    ) {
+        String userId = resolveUserId(request == null ? null : request.userId(), headerUserId);
+        if (userId == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "userId is required"));
+        }
+        try {
+            return ResponseEntity.ok(groupService.join(id, userId));
+        } catch (IllegalArgumentException exception) {
+            return userNotFound(exception);
+        }
     }
 
     @PostMapping({"/{id}/posts", "/{id}/messages"})
@@ -69,5 +103,22 @@ public class GroupController {
 
     private String normalizeUserId(String userId) {
         return userId == null || userId.isBlank() ? null : userId.trim();
+    }
+
+    private String resolveUserId(String requestUserId, String headerUserId) {
+        String normalizedRequestId = normalizeUserId(requestUserId);
+        String normalizedHeaderId = normalizeUserId(headerUserId);
+        if (normalizedRequestId == null || normalizedHeaderId == null
+                || !normalizedRequestId.equals(normalizedHeaderId)) {
+            return null;
+        }
+        return normalizedRequestId;
+    }
+
+    private ResponseEntity<?> userNotFound(IllegalArgumentException exception) {
+        if ("User not found".equals(exception.getMessage()) || "Group not found".equals(exception.getMessage())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", exception.getMessage()));
+        }
+        return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
     }
 }
